@@ -2,12 +2,22 @@ namespace Functions
 {
     class Fucntions
     {
-        public double Function1(int baseGrip, double tireWearRate, int lapsCompleted, double degFactor, double refLaptime, double grip_coefficient)
+        public double Function1(double baseGrip, double tireWearRate, int lapsCompleted, double degFactor, double refLaptime, double gripCoefficient)
         {
-            double gripLevel = Math.Pow(baseGrip * (1 - tireWearRate * lapsCompleted), degFactor);
-            double lapTimeImpact = refLaptime / (1 * grip_coefficient * gripLevel);
+            double gripLevel = baseGrip * Math.Pow(1 - tireWearRate * lapsCompleted, degFactor);
+
+            double lapTimeImpact = refLaptime / (1 + gripCoefficient * gripLevel);
 
             return lapTimeImpact;
+        }
+
+        public double Function2(double baseConsumption, double weightPenalty, double currentFuelLoad, int remainingLaps)
+        {
+            var fuelPerLap = baseConsumption + (weightPenalty * currentFuelLoad);
+            var remainingFuel = currentFuelLoad - (fuelPerLap * remainingLaps);
+            var fuelSaveRequired = remainingFuel < 0 ? Math.Abs(remainingFuel) / remainingLaps : 0;
+            return fuelSaveRequired;
+
         }
     }
 }

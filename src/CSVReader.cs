@@ -41,24 +41,15 @@ namespace CSVReader
             public string Unit { get; set; }
             public string Description { get; set; }
         }
-        private async Task<List<TelemetryData>> ReadTelemetryData()
-        {
-            return await Task.Run(() =>
-            {
-                using var reader = new StreamReader("./data/telemetry_data.csv");
-                using var csv = new CsvHelper.CsvReader(reader, CultureInfo.InvariantCulture);
-                return csv.GetRecords<TelemetryData>().ToList();
-            });
-        }
 
 
-        public async Task<(List<CompetitorData>, Dictionary<string, RaceParamValue>, List<TelemetryData>)> ReadCsvFilesConcurrentlyAsync()
+
+        public async Task<(List<CompetitorData>, Dictionary<string, RaceParamValue>)> ReadCsvFilesConcurrentlyAsync()
         {
             var competitorTask = ReadCompetitorData();
             var paramTask = ReadParamData();
-            var telemetryTask = ReadTelemetryData();
 
-            return (await competitorTask, await paramTask, await telemetryTask);
+            return (await competitorTask, await paramTask);
         }
     }
 }
