@@ -1,4 +1,5 @@
 using System.Globalization;
+using CsvHelper.Configuration.Attributes;
 
 namespace CSVReader
 {
@@ -15,14 +16,30 @@ namespace CSVReader
             });
         }
 
-        private async Task<List<RaceParams>> ReadParamData()
+        public async Task<Dictionary<string, RaceParamValue>> ReadParamData()
         {
+            using var reader = new StreamReader("./data/race_parameters.csv");
+            using var csv = new CsvHelper.CsvReader(reader, CultureInfo.InvariantCulture);
+
             return await Task.Run(() =>
-            {
-                using var reader = new StreamReader("./data/race_parameters.csv");
-                using var csv = new CsvHelper.CsvReader(reader, CultureInfo.InvariantCulture);
-                return csv.GetRecords<RaceParams>().ToList();
-            });
+                csv.GetRecords<RaceParams>()
+                .ToDictionary(
+                    r => r.Parameter,
+                    r => new RaceParamValue
+                    {
+                        Value = r.Value,
+                        Unit = r.Unit,
+                        Description = r.Description
+                    }
+                ));
+        }
+
+
+        public class RaceParamValue
+        {
+            public string Value { get; set; }
+            public string Unit { get; set; }
+            public string Description { get; set; }
         }
         private async Task<List<TelemetryData>> ReadTelemetryData()
         {
@@ -35,7 +52,7 @@ namespace CSVReader
         }
 
 
-        public async Task<(List<CompetitorData>, List<RaceParams>, List<TelemetryData>)> ReadCsvFilesConcurrentlyAsync()
+        public async Task<(List<CompetitorData>, Dictionary<string, RaceParamValue>, List<TelemetryData>)> ReadCsvFilesConcurrentlyAsync()
         {
             var competitorTask = ReadCompetitorData();
             var paramTask = ReadParamData();
@@ -61,10 +78,17 @@ public class CompetitorData
 }
 public class RaceParams
 {
-    public string parameter { get; set; }
-    public string value { get; set; }
-    public string unit { get; set; }
-    public string description { get; set; }
+    [Name("parameter")]
+    public string Parameter { get; set; }
+
+    [Name("value")]
+    public string Value { get; set; }
+
+    [Name("unit")]
+    public string Unit { get; set; }
+
+    [Name("description")]
+    public string Description { get; set; }
 }
 public class TelemetryData
 {
