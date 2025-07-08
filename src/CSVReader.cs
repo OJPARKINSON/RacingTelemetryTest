@@ -66,6 +66,7 @@ public class CompetitorData
     public double estimated_speed { get; set; }
     public double fuel_load_estimate { get; set; }
     public int tire_age { get; set; }
+    public double distance_to_our_car { get; set; }
 }
 public class RaceParams
 {

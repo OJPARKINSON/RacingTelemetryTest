@@ -30,5 +30,18 @@ namespace Functions
 
             return (straightLineSpeed, corneringSpeed);
         }
+        public double Function4(int ownSpeed, double competitorSpeed, double distance, double slipstreamRange, double slipstreamFactor, double trackDifficulty)
+        {
+            var speedDelta = ownSpeed - competitorSpeed;
+            var slipstreamBenefit = distance < slipstreamRange ? slipstreamFactor : 0;
+            var overtakingProbability = Sigmoid(speedDelta + slipstreamBenefit - trackDifficulty);
+            return overtakingProbability;
+        }
+
+        private static double Sigmoid(double value)
+        {
+            double k = Math.Exp(value);
+            return k / (1.0f + k);
+        }
     }
 }
