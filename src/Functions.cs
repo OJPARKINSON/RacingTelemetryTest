@@ -11,11 +11,12 @@ namespace Functions
             return lapTimeImpact;
         }
 
+        // This function meets critera but doesn't caculate the value for the end of the race
         public double Function2(double baseConsumption, double weightPenalty, double currentFuelLoad, int remainingLaps)
         {
             var fuelPerLap = baseConsumption + (weightPenalty * currentFuelLoad);
             var remainingFuel = currentFuelLoad - (fuelPerLap * remainingLaps);
-            var fuelSaveRequired = remainingFuel < 0 ? Math.Abs(remainingFuel) / remainingLaps : 0;
+            var fuelSaveRequired = remainingFuel < 0.0 ? Math.Abs(remainingFuel) / remainingLaps : 0;
             return fuelSaveRequired;
 
         }
