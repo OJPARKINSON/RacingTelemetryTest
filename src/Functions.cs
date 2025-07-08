@@ -20,5 +20,15 @@ namespace Functions
             return fuelSaveRequired;
 
         }
+
+        public (double, double) Function3(double baseDrag, double damageFactor, double baseDownforce, double airDensity, double maxSpeed, double baseCornerSpeed)
+        {
+            var dragCoefficient = baseDrag + (damageFactor * 0.1);
+            var downForceLoss = baseDownforce * (1 - 0.1);
+            var straightLineSpeed = maxSpeed * (1 - dragCoefficient * airDensity);
+            var corneringSpeed = baseCornerSpeed * Math.Sqrt(downForceLoss / baseDownforce);
+
+            return (straightLineSpeed, corneringSpeed);
+        }
     }
 }

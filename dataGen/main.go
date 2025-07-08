@@ -49,6 +49,7 @@ type Competitor struct {
 	EstimatedSpeed   float64
 	FuelLoadEstimate float64
 	TireAge          int
+	DistanceToOurCar float64 // Added for overtaking analysis
 }
 
 // Random number generator with seed
@@ -277,7 +278,7 @@ func generateRaceParameters() []RaceParameter {
 		{"damage_factor", 0.15, "factor", "Aero damage impact"},
 		{"base_downforce", 850, "N", "Base downforce"},
 		{"air_density_factor", 1.0, "factor", "Air density correction"},
-		{"base_corner_speed", 65, "km/h", "Base cornering speed"},
+		{"base_corner_speed", 70, "km/h", "Reference cornering speed for Monaco (median of all corners)"},
 		{"slipstream_range", 50, "meters", "Slipstream effective range"},
 		{"slipstream_factor", 0.08, "factor", "Slipstream benefit"},
 		{"track_difficulty", 0.7, "factor", "Overtaking difficulty"},
@@ -292,6 +293,9 @@ func generateRaceParameters() []RaceParameter {
 		{"tire_compound", "Medium", "", "Current tire compound"},
 		{"fuel_capacity", 110, "kg", "Maximum fuel capacity"},
 		{"current_fuel", 108.5, "kg", "Current fuel load"},
+		{"max_speed", 320, "km/h", "Car maximum speed capability"},
+		{"aero_damage_percentage", 0.05, "percentage", "Current aerodynamic damage level"},
+		{"tire_advantage_per_lap", 0.8, "seconds", "Lap time advantage of fresh tires"},
 	}
 }
 
@@ -310,6 +314,24 @@ func generateCompetitorData() []Competitor {
 			position = i - 1
 		}
 
+		// Calculate realistic distance to our car based on position
+		var distanceToOurCar float64
+		ourPosition := 10 // Assume we're in P10
+		positionDiff := math.Abs(float64(position - ourPosition))
+
+		if position < ourPosition {
+			// Cars ahead of us
+			distanceToOurCar = positionDiff * uniformRandom(80, 150) // 80-150m per position ahead
+		} else {
+			// Cars behind us
+			distanceToOurCar = positionDiff * uniformRandom(100, 200) // 100-200m per position behind
+		}
+
+		// Add some variation for cars in close proximity (within 2 positions)
+		if positionDiff <= 2 {
+			distanceToOurCar = uniformRandom(20, 80) // Close racing
+		}
+
 		competitor := Competitor{
 			CarNumber:        i,
 			Position:         position,
@@ -320,6 +342,7 @@ func generateCompetitorData() []Competitor {
 			EstimatedSpeed:   math.Round((220+uniformRandom(-20, 30))*10) / 10,
 			FuelLoadEstimate: math.Round((uniformRandom(95, 110))*10) / 10,
 			TireAge:          rng.Intn(21) + 5, // 5-25 laps
+			DistanceToOurCar: math.Round(distanceToOurCar*10) / 10,
 		}
 		competitors = append(competitors, competitor)
 	}
@@ -424,7 +447,8 @@ func writeCompetitorCSV(competitors []Competitor, filename string) error {
 	// Write header
 	header := []string{
 		"car_number", "position", "gap_to_leader", "last_lap_time",
-		"tire_compound", "pit_stops", "estimated_speed", "fuel_load_estimate", "tire_age",
+		"tire_compound", "pit_stops", "estimated_speed", "fuel_load_estimate",
+		"tire_age", "distance_to_our_car",
 	}
 	if err := writer.Write(header); err != nil {
 		return err
@@ -442,6 +466,7 @@ func writeCompetitorCSV(competitors []Competitor, filename string) error {
 			fmt.Sprintf("%.1f", comp.EstimatedSpeed),
 			fmt.Sprintf("%.1f", comp.FuelLoadEstimate),
 			strconv.Itoa(comp.TireAge),
+			fmt.Sprintf("%.1f", comp.DistanceToOurCar),
 		}
 		if err := writer.Write(row); err != nil {
 			return err
@@ -461,17 +486,17 @@ func main() {
 	competitorData := generateCompetitorData()
 
 	// Write CSV files
-	if err := writeTelemetryCSV(telemetryData, "../data/telemetry_data.csv"); err != nil {
+	if err := writeTelemetryCSV(telemetryData, "telemetry_data.csv"); err != nil {
 		fmt.Printf("Error writing telemetry data: %v\n", err)
 		return
 	}
 
-	if err := writeRaceParametersCSV(raceParams, "../data/race_parameters.csv"); err != nil {
+	if err := writeRaceParametersCSV(raceParams, "race_parameters.csv"); err != nil {
 		fmt.Printf("Error writing race parameters: %v\n", err)
 		return
 	}
 
-	if err := writeCompetitorCSV(competitorData, "../data/competitor_data.csv"); err != nil {
+	if err := writeCompetitorCSV(competitorData, "competitor_data.csv"); err != nil {
 		fmt.Printf("Error writing competitor data: %v\n", err)
 		return
 	}
