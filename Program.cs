@@ -26,24 +26,20 @@ using (var csv = new CsvHelper.CsvReader(reader, CultureInfo.InvariantCulture))
 
         // Console.WriteLine(straightLineSpeed);
         // Console.WriteLine(cornerSpeed);
+
+        // var overtakingProbability = funcs.Function4(
+        //     csv.GetField<double>(3),
+        //     competitors[4].estimated_speed,
+        //     competitors[4].distance_to_our_car,
+        //     int.Parse(raceParams["slipstream_range"].Value),
+        //     double.Parse(raceParams["slipstream_factor"].Value),
+        //     double.Parse(raceParams["track_difficulty"].Value));
+
+        // Console.WriteLine(overtakingProbability);
+
+
         if (csv.GetField<double>(0) == 784.3)
         {
-
-            Console.WriteLine(csv.GetField<int>(3));
-            Console.WriteLine(competitors[0].estimated_speed);
-            Console.WriteLine(competitors[0].distance_to_our_car);
-            Console.WriteLine(int.Parse(raceParams["slipstream_range"].Value));
-            Console.WriteLine(double.Parse(raceParams["slipstream_factor"].Value));
-            Console.WriteLine(double.Parse(raceParams["track_difficulty"].Value));
-            // var overtakingProbability = funcs.Function4(
-            //     csv.GetField<int>(3),
-            //     competitors[0].estimated_speed,
-            //     competitors[0].distance_to_our_car,
-            //     int.Parse(raceParams["slipstream_range"].Value),
-            //     double.Parse(raceParams["slipstream_factor"].Value),
-            //     double.Parse(raceParams["track_difficulty"].Value));
-
-            // Console.WriteLine(overtakingProbability);
         }
     }
 }

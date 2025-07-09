@@ -30,7 +30,9 @@ namespace Functions
 
             return (straightLineSpeed, corneringSpeed);
         }
-        public double Function4(int ownSpeed, double competitorSpeed, double distance, double slipstreamRange, double slipstreamFactor, double trackDifficulty)
+
+        // Average lap time
+        public double Function4(double ownSpeed, double competitorSpeed, double distance, double slipstreamRange, double slipstreamFactor, double trackDifficulty)
         {
             var speedDelta = ownSpeed - competitorSpeed;
             var slipstreamBenefit = distance < slipstreamRange ? slipstreamFactor : 0;
