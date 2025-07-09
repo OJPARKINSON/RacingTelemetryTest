@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.Extensions.FileSystemGlobbing.Internal.PathSegments;
 
 CSVReader.DataReader DR = new CSVReader.DataReader();
 
@@ -6,15 +7,42 @@ var (competitors, raceParams) = await DR.ReadCsvFilesConcurrentlyAsync();
 
 Functions.Fucntions funcs = new Functions.Fucntions();
 
-
-
 using var reader = new StreamReader("./data/telemetry_data.csv");
 using (var csv = new CsvHelper.CsvReader(reader, CultureInfo.InvariantCulture))
 {
     csv.Read();
     csv.ReadHeader();
+
+    List<double> fiveLapPace = new List<double>();
+    int currentLap = 1;
+    double startTime = -0.1;
+    double endTime = 0.0;
+    double lastTime = 0.0;
+
     while (csv.Read())
     {
+        if (startTime == -0.1)
+        {
+            startTime = csv.GetField<double>(0);
+        }
+        if (csv.GetField<int>(1) != currentLap)
+        {
+            currentLap = csv.GetField<int>(1);
+            endTime = lastTime;
+
+            fiveLapPace.Add(endTime - startTime);
+            if (fiveLapPace.Count > 5)
+            {
+                fiveLapPace.RemoveAt(0);
+            }
+
+            var fiveLapPaces = funcs.calculateAvgPace(fiveLapPace);
+
+            startTime = csv.GetField<double>(0);
+
+        }
+
+        lastTime = csv.GetField<double>(0);
 
         // double func1 = funcs.Function1(double.Parse(raceParams["base_grip"].Value), double.Parse(raceParams["tire_wear_rate"].Value), csv.GetField<int>(1) - 1, double.Parse(raceParams["degradation_factor"].Value), double.Parse(raceParams["reference_lap_time"].Value), double.Parse(raceParams["grip_coefficient"].Value));
         // Console.WriteLine(func1);

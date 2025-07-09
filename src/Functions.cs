@@ -40,6 +40,21 @@ namespace Functions
             return overtakingProbability;
         }
 
+        // public double Function5(double pitLaneTime, double tireChangeTime, double pitLanePenalty, double slipstreamRange, double slipstreamFactor, double trackDifficulty)
+        // {
+        // }
+
+        public double calculateAvgPace(List<double> fiveLapPace)
+        {
+            double count = 0.0;
+            foreach (double lap in fiveLapPace)
+            {
+                count += lap;
+            }
+
+            return count / fiveLapPace.Count;
+        }
+
         private static double Sigmoid(double value)
         {
             double k = Math.Exp(value);
