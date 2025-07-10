@@ -36,7 +36,6 @@ using (var csv = new CsvHelper.CsvReader(reader, CultureInfo.InvariantCulture))
                 fiveLapPace.RemoveAt(0);
             }
 
-            var fiveLapPaces = funcs.calculateAvgPace(fiveLapPace);
 
             startTime = csv.GetField<double>(0);
 
@@ -55,18 +54,24 @@ using (var csv = new CsvHelper.CsvReader(reader, CultureInfo.InvariantCulture))
         // Console.WriteLine(straightLineSpeed);
         // Console.WriteLine(cornerSpeed);
 
-        // var overtakingProbability = funcs.Function4(
-        //     csv.GetField<double>(3),
-        //     competitors[4].estimated_speed,
-        //     competitors[4].distance_to_our_car,
-        //     int.Parse(raceParams["slipstream_range"].Value),
-        //     double.Parse(raceParams["slipstream_factor"].Value),
-        //     double.Parse(raceParams["track_difficulty"].Value));
-
-        // Console.WriteLine(overtakingProbability);
-
+        var fiveLapPaces = funcs.calculateAvgPace(fiveLapPace);
 
         if (csv.GetField<double>(0) == 784.3)
+            foreach (CompetitorData comp in competitors)
+            {
+
+                var overtakingProbability = funcs.Function4(
+                    fiveLapPaces,
+                    comp.estimated_speed,
+                    comp.distance_to_our_car,
+                    int.Parse(raceParams["slipstream_range"].Value),
+                    double.Parse(raceParams["slipstream_factor"].Value),
+                    double.Parse(raceParams["track_difficulty"].Value));
+
+                Console.WriteLine(overtakingProbability);
+            }
+
+
         {
         }
     }
