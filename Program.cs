@@ -13,35 +13,33 @@ using (var csv = new CsvHelper.CsvReader(reader, CultureInfo.InvariantCulture))
     csv.Read();
     csv.ReadHeader();
 
-    List<double> fiveLapPace = new List<double>();
+    List<double> fiveLapTopSpeed = new List<double>();
     int currentLap = 1;
-    double startTime = -0.1;
-    double endTime = 0.0;
-    double lastTime = 0.0;
+    double fastestSpeed = 0.0;
 
     while (csv.Read())
     {
-        if (startTime == -0.1)
-        {
-            startTime = csv.GetField<double>(0);
-        }
         if (csv.GetField<int>(1) != currentLap)
         {
             currentLap = csv.GetField<int>(1);
-            endTime = lastTime;
 
-            fiveLapPace.Add(endTime - startTime);
-            if (fiveLapPace.Count > 5)
+            fiveLapTopSpeed.Add(fastestSpeed);
+            fastestSpeed = 0.0;
+            if (fiveLapTopSpeed.Count > 5)
             {
-                fiveLapPace.RemoveAt(0);
+                fiveLapTopSpeed.RemoveAt(0);
             }
 
 
-            startTime = csv.GetField<double>(0);
 
         }
 
-        lastTime = csv.GetField<double>(0);
+        var currentSpeed = csv.GetField<double>(3);
+        if (currentSpeed > fastestSpeed)
+        {
+            fastestSpeed = currentSpeed;
+        }
+
 
         // double func1 = funcs.Function1(double.Parse(raceParams["base_grip"].Value), double.Parse(raceParams["tire_wear_rate"].Value), csv.GetField<int>(1) - 1, double.Parse(raceParams["degradation_factor"].Value), double.Parse(raceParams["reference_lap_time"].Value), double.Parse(raceParams["grip_coefficient"].Value));
         // Console.WriteLine(func1);
@@ -54,14 +52,16 @@ using (var csv = new CsvHelper.CsvReader(reader, CultureInfo.InvariantCulture))
         // Console.WriteLine(straightLineSpeed);
         // Console.WriteLine(cornerSpeed);
 
-        var fiveLapPaces = funcs.calculateAvgPace(fiveLapPace);
+        var yourAvgSpeed = funcs.calculateAvgPace(fiveLapTopSpeed);
 
         if (csv.GetField<double>(0) == 784.3)
+        {
+
             foreach (CompetitorData comp in competitors)
             {
 
                 var overtakingProbability = funcs.Function4(
-                    fiveLapPaces,
+                    yourAvgSpeed,
                     comp.estimated_speed,
                     comp.distance_to_our_car,
                     int.Parse(raceParams["slipstream_range"].Value),
@@ -70,10 +70,10 @@ using (var csv = new CsvHelper.CsvReader(reader, CultureInfo.InvariantCulture))
 
                 Console.WriteLine(overtakingProbability);
             }
-
-
-        {
+            Console.WriteLine(yourAvgSpeed);
         }
+
+
     }
 }
 ;

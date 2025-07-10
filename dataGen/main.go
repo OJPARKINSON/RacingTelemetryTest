@@ -46,10 +46,10 @@ type Competitor struct {
 	LastLapTime      float64
 	TireCompound     string
 	PitStops         int
-	EstimatedSpeed   float64
+	EstimatedSpeed   float64 // Now Monaco-realistic top speeds
 	FuelLoadEstimate float64
 	TireAge          int
-	DistanceToOurCar float64 // Added for overtaking analysis
+	DistanceToOurCar float64
 }
 
 // Random number generator with seed
@@ -81,7 +81,44 @@ func clamp(value, min, max float64) float64 {
 	return value
 }
 
-// generateTelemetryData creates realistic F1 telemetry data for Monaco GP
+// getMonacoSpeedProfile returns realistic Monaco speed based on track position
+func getMonacoSpeedProfile(lapProgress float64) float64 {
+	// Monaco corner analysis with realistic speeds
+	switch {
+	case lapProgress < 0.08: // Start/finish straight
+		return 140 + 45*math.Sin(lapProgress*25)
+	case lapProgress < 0.12: // Turn 1 (Sainte Devote)
+		return 85 + 15*math.Sin(lapProgress*30)
+	case lapProgress < 0.18: // Beau Rivage climb
+		return 95 + 25*lapProgress*10
+	case lapProgress < 0.25: // Massenet and Casino Square
+		return 70 + 20*math.Sin(lapProgress*15)
+	case lapProgress < 0.32: // Mirabeau Haute approach
+		return 110 + 30*lapProgress*8
+	case lapProgress < 0.38: // Mirabeau (Turn 5)
+		return 65 + 20*math.Sin(lapProgress*20)
+	case lapProgress < 0.45: // Loews Hairpin approach
+		return 80 + 25*lapProgress*6
+	case lapProgress < 0.52: // Loews Hairpin (slowest corner)
+		return 45 + 15*math.Sin(lapProgress*25)
+	case lapProgress < 0.58: // Portier (Turn 8)
+		return 75 + 30*lapProgress*5
+	case lapProgress < 0.68: // Tunnel entrance to exit
+		return 110 + 70*lapProgress*3 // Fastest section
+	case lapProgress < 0.75: // Nouvelle Chicane approach
+		return 145 + 35*math.Sin(lapProgress*12)
+	case lapProgress < 0.82: // Swimming Pool chicane
+		return 85 + 25*math.Sin(lapProgress*18)
+	case lapProgress < 0.88: // La Rascasse (Turn 17)
+		return 70 + 20*lapProgress*4
+	case lapProgress < 0.95: // Anthony Noghes (Turn 19)
+		return 90 + 35*lapProgress*6
+	default: // Back to start/finish
+		return 125 + 40*(1-lapProgress)*8
+	}
+}
+
+// generateTelemetryData creates realistic Monaco F1 telemetry data
 func generateTelemetryData() *TelemetryData {
 	// Monaco track characteristics
 	trackLength := 3.337 // km
@@ -115,8 +152,8 @@ func generateTelemetryData() *TelemetryData {
 
 	// Generate data for each lap
 	for lap := 1; lap <= totalLaps; lap++ {
-		// Tire degradation factor
-		tireDeg := 1.0 + float64(lap-1)*0.008 // 0.8% degradation per lap
+		// Tire degradation factor (more aggressive for Monaco)
+		tireDeg := 1.0 + float64(lap-1)*0.012 // 1.2% degradation per lap
 
 		// Fuel load effect (lighter car = faster)
 		fuelRemaining := 110.0 - float64(lap-1)*2.2     // Starting fuel 110kg, 2.2kg per lap
@@ -128,114 +165,128 @@ func generateTelemetryData() *TelemetryData {
 			lapProgress := float64(sample) / float64(samplesPerLap)
 			currentDistance := float64(lap-1)*trackLength + lapProgress*trackLength
 
-			// Monaco-specific speed profile (street circuit with slow corners)
-			var baseSpeed float64
-			switch {
-			case lapProgress < 0.15: // Casino Square area
-				baseSpeed = 45 + 30*math.Sin(lapProgress*10)
-			case lapProgress < 0.3: // Uphill to Massenet
-				baseSpeed = 60 + 40*lapProgress
-			case lapProgress < 0.45: // Casino to Mirabeau
-				baseSpeed = 50 + 25*math.Sin(lapProgress*8)
-			case lapProgress < 0.55: // Hairpin
-				baseSpeed = 25 + 15*math.Sin(lapProgress*20)
-			case lapProgress < 0.75: // Portier to Tunnel
-				baseSpeed = 80 + 50*lapProgress
-			case lapProgress < 0.85: // Swimming Pool
-				baseSpeed = 60 + 20*math.Sin(lapProgress*15)
-			default: // Back straight
-				baseSpeed = 90 + 60*(1-lapProgress)
-			}
+			// Monaco-specific realistic speed profile
+			baseSpeed := getMonacoSpeedProfile(lapProgress)
 
 			// Apply tire degradation and fuel effects
 			speed := baseSpeed * fuelEffect / tireDeg
 
 			// Add realistic noise
-			speed += normalRandom(0, 2)
-			speed = clamp(speed, 20, 320) // Realistic F1 speed limits
+			speed += normalRandom(0, 1.5)
+			speed = clamp(speed, 20, 190) // Monaco realistic speed limits
 
-			// Throttle and brake based on speed profile
+			// Throttle and brake based on speed and Monaco characteristics
 			var throttle, brakePressure float64
-			brakingZones := []float64{0.15, 0.45, 0.55, 0.85}
+
+			// Major braking zones at Monaco
+			brakingZones := []float64{0.12, 0.38, 0.52, 0.75, 0.88} // Sainte Devote, Mirabeau, Hairpin, Chicane, Anthony Noghes
 			isBraking := false
 			for _, zone := range brakingZones {
-				if math.Abs(lapProgress-zone) < 0.02 {
+				if math.Abs(lapProgress-zone) < 0.025 {
 					isBraking = true
 					break
 				}
 			}
 
-			if isBraking { // Braking zones
-				throttle = uniformRandom(0, 30)
-				brakePressure = uniformRandom(80, 150)
-			} else if speed > 200 { // High speed sections
+			if isBraking { // Heavy braking zones
+				throttle = uniformRandom(0, 25)
+				brakePressure = uniformRandom(100, 200) // Heavy braking in Monaco
+			} else if speed > 140 { // Tunnel section
 				throttle = uniformRandom(85, 100)
-				brakePressure = 0
-			} else { // Medium speed corners
-				throttle = uniformRandom(40, 80)
-				brakePressure = uniformRandom(0, 20)
+				brakePressure = uniformRandom(0, 10)
+			} else if speed < 70 { // Slow corners
+				throttle = uniformRandom(30, 60)
+				brakePressure = uniformRandom(20, 50)
+			} else { // Medium speed sections
+				throttle = uniformRandom(50, 85)
+				brakePressure = uniformRandom(0, 25)
 			}
 
-			// Tire temperatures (Monaco is hard on tires)
-			baseTireTemp := 85.0 + float64(lap)*3.0 // Increasing with tire degradation
-			tireTempFL := baseTireTemp + normalRandom(0, 5) + (throttle * 0.2)
-			tireTempFR := baseTireTemp + normalRandom(0, 5) + (throttle * 0.15)
-			tireTempRL := baseTireTemp + normalRandom(0, 4) + (throttle * 0.25)
-			tireTempRR := baseTireTemp + normalRandom(0, 4) + (throttle * 0.2)
+			// Tire temperatures (Monaco is demanding on tires due to barriers and track surface)
+			baseTireTemp := 90.0 + float64(lap)*2.5 // Increasing with tire degradation
+			tireTempFL := baseTireTemp + normalRandom(0, 4) + (throttle * 0.15) + (brakePressure * 0.1)
+			tireTempFR := baseTireTemp + normalRandom(0, 4) + (throttle * 0.12) + (brakePressure * 0.08)
+			tireTempRL := baseTireTemp + normalRandom(0, 3) + (throttle * 0.18) + (brakePressure * 0.05)
+			tireTempRR := baseTireTemp + normalRandom(0, 3) + (throttle * 0.15) + (brakePressure * 0.05)
 
-			// Fuel flow (higher at high throttle)
-			fuelFlow := 20.0 + (throttle * 0.8) + normalRandom(0, 3)
-			fuelFlow = clamp(fuelFlow, 0, 110) // F1 fuel flow limit
+			// Clamp tire temperatures to realistic ranges
+			tireTempFL = clamp(tireTempFL, 80, 140)
+			tireTempFR = clamp(tireTempFR, 80, 140)
+			tireTempRL = clamp(tireTempRL, 80, 140)
+			tireTempRR = clamp(tireTempRR, 80, 140)
 
-			// Engine RPM
+			// Fuel flow (higher at high throttle, limited by regulations)
+			fuelFlow := 25.0 + (throttle * 0.75) + normalRandom(0, 4)
+			fuelFlow = clamp(fuelFlow, 0, 110) // F1 fuel flow limit 110 kg/h
+
+			// Engine RPM based on speed and gear
 			var rpm float64
-			if speed < 50 {
-				rpm = 6000 + speed*40
+			if speed < 60 {
+				rpm = 7000 + speed*35
+			} else if speed < 120 {
+				rpm = 9000 + (speed-60)*25
 			} else {
-				rpm = 8000 + (speed-50)*30
+				rpm = 10500 + (speed-120)*15
 			}
-			rpm += normalRandom(0, 100)
-			rpmInt := int(clamp(rpm, 4000, 15000))
+			rpm += normalRandom(0, 150)
+			rpmInt := int(clamp(rpm, 5000, 15000))
 
-			// DRS (only on main straight - limited in Monaco)
+			// DRS (very limited in Monaco - only small section before Sainte Devote)
 			var drsActive int
-			if lapProgress > 0.75 && speed > 150 && brakePressure < 5 {
+			if lapProgress > 0.95 && lapProgress < 0.08 && speed > 120 && brakePressure < 15 {
 				drsActive = 1
 			} else {
 				drsActive = 0
 			}
 
-			// Battery deployment (ERS)
+			// Battery deployment (ERS) - strategic in Monaco due to limited overtaking
 			var batteryDeployment float64
-			if throttle > 70 {
-				batteryDeployment = uniformRandom(120, 160) // kW
+			if lapProgress > 0.58 && lapProgress < 0.68 { // Tunnel section
+				batteryDeployment = uniformRandom(120, 160) // Maximum deployment
+			} else if throttle > 75 {
+				batteryDeployment = uniformRandom(60, 120)
 			} else {
-				batteryDeployment = uniformRandom(0, 50)
+				batteryDeployment = uniformRandom(0, 40)
 			}
 
-			// Gear estimation
+			// Gear estimation based on Monaco characteristics
 			var gear int
-			if speed < 60 {
-				gear = int(math.Max(1, math.Min(3, math.Floor(speed/25)+1)))
+			if speed < 50 {
+				gear = int(math.Max(1, math.Min(2, math.Floor(speed/30)+1)))
+			} else if speed < 80 {
+				gear = int(math.Max(2, math.Min(4, math.Floor(speed/25)+1)))
+			} else if speed < 120 {
+				gear = int(math.Max(3, math.Min(6, math.Floor(speed/25)+1)))
 			} else {
-				gear = int(math.Max(3, math.Min(8, math.Floor(speed/40)+2)))
+				gear = int(math.Max(5, math.Min(8, math.Floor(speed/30)+2)))
 			}
 
-			// Steering angle (Monaco has many turns)
+			// Steering angle (Monaco requires constant steering input)
 			var steeringAngle float64
-			majorCorners := []float64{0.1, 0.2, 0.4, 0.55, 0.8}
-			isMajorCorner := false
+			// Monaco corner definitions with realistic steering angles
+			majorCorners := []float64{0.12, 0.25, 0.38, 0.52, 0.75, 0.82, 0.88}
+			isInCorner := false
+			cornerIntensity := 0.0
+
 			for _, corner := range majorCorners {
-				if math.Abs(lapProgress-corner) < 0.02 {
-					isMajorCorner = true
+				if math.Abs(lapProgress-corner) < 0.03 {
+					isInCorner = true
+					if math.Abs(lapProgress-0.52) < 0.02 { // Hairpin
+						cornerIntensity = 1.0
+					} else if math.Abs(lapProgress-0.25) < 0.02 || math.Abs(lapProgress-0.75) < 0.02 { // Casino, Swimming Pool
+						cornerIntensity = 0.8
+					} else {
+						cornerIntensity = 0.6
+					}
 					break
 				}
 			}
 
-			if isMajorCorner {
-				steeringAngle = uniformRandom(-45, 45)
+			if isInCorner {
+				maxAngle := 35 + cornerIntensity*25 // Up to 60 degrees for hairpin
+				steeringAngle = uniformRandom(-maxAngle, maxAngle)
 			} else {
-				steeringAngle = uniformRandom(-10, 10)
+				steeringAngle = uniformRandom(-8, 8) // Small corrections on straights
 			}
 
 			// Store data with proper rounding
@@ -261,45 +312,45 @@ func generateTelemetryData() *TelemetryData {
 	return data
 }
 
-// generateRaceParameters creates race parameters for Monaco GP
+// generateRaceParameters creates Monaco-specific race parameters
 func generateRaceParameters() []RaceParameter {
 	return []RaceParameter{
 		{"track_name", "Monaco", "", "Circuit name"},
 		{"track_length", 3.337, "km", "Track length"},
 		{"total_laps", 78, "laps", "Total race laps"},
 		{"base_grip", 0.95, "coefficient", "Base tire grip level"},
-		{"tire_wear_rate", 0.012, "per_lap", "Tire degradation rate"},
-		{"degradation_factor", 1.8, "factor", "Degradation curve steepness"},
-		{"grip_coefficient", 0.85, "coefficient", "Grip to lap time conversion"},
+		{"tire_wear_rate", 0.015, "per_lap", "Tire degradation rate (higher for Monaco)"},
+		{"degradation_factor", 1.9, "factor", "Degradation curve steepness"},
+		{"grip_coefficient", 0.82, "coefficient", "Grip to lap time conversion"},
 		{"reference_lap_time", 78.5, "seconds", "Reference lap time"},
-		{"base_consumption", 2.2, "kg/lap", "Base fuel consumption"},
+		{"base_consumption", 2.1, "kg/lap", "Base fuel consumption (lower for Monaco)"},
 		{"weight_penalty", 0.0003, "factor", "Fuel weight penalty"},
-		{"base_drag", 0.28, "coefficient", "Base drag coefficient"},
-		{"damage_factor", 0.15, "factor", "Aero damage impact"},
-		{"base_downforce", 850, "N", "Base downforce"},
+		{"base_drag", 0.32, "coefficient", "Base drag coefficient (higher downforce setup)"},
+		{"damage_factor", 0.25, "factor", "Aero damage impact (higher risk in Monaco)"},
+		{"base_downforce", 1200, "N", "Base downforce (high downforce setup)"},
 		{"air_density_factor", 1.0, "factor", "Air density correction"},
-		{"base_corner_speed", 70, "km/h", "Reference cornering speed for Monaco (median of all corners)"},
-		{"slipstream_range", 50, "meters", "Slipstream effective range"},
-		{"slipstream_factor", 0.08, "factor", "Slipstream benefit"},
-		{"track_difficulty", 0.7, "factor", "Overtaking difficulty"},
-		{"pit_lane_time", 22.5, "seconds", "Pit lane transit time"},
+		{"base_corner_speed", 65, "km/h", "Base cornering speed"},
+		{"slipstream_range", 30, "meters", "Slipstream effective range (shorter in Monaco)"},
+		{"slipstream_factor", 0.05, "factor", "Slipstream benefit (reduced in Monaco)"},
+		{"track_difficulty", 0.95, "factor", "Overtaking difficulty (very high for Monaco)"},
+		{"pit_lane_time", 25.2, "seconds", "Pit lane transit time (longer for Monaco)"},
 		{"tire_change_time", 2.8, "seconds", "Tire change duration"},
-		{"pit_lane_penalty", 0.5, "seconds", "Additional pit penalty"},
-		{"average_gap_per_position", 0.8, "seconds", "Time gap per position"},
+		{"pit_lane_penalty", 0.8, "seconds", "Additional pit penalty"},
+		{"average_gap_per_position", 1.2, "seconds", "Time gap per position (larger in Monaco)"},
 		{"ambient_temp", 24, "celsius", "Ambient temperature"},
 		{"track_temp", 42, "celsius", "Track temperature"},
 		{"humidity", 65, "percent", "Relative humidity"},
-		{"wind_speed", 5, "km/h", "Wind speed"},
+		{"wind_speed", 8, "km/h", "Wind speed (Monaco can be gusty)"},
 		{"tire_compound", "Medium", "", "Current tire compound"},
 		{"fuel_capacity", 110, "kg", "Maximum fuel capacity"},
 		{"current_fuel", 108.5, "kg", "Current fuel load"},
-		{"max_speed", 320, "km/h", "Car maximum speed capability"},
-		{"aero_damage_percentage", 0.05, "percentage", "Current aerodynamic damage level"},
-		{"tire_advantage_per_lap", 0.8, "seconds", "Lap time advantage of fresh tires"},
+		{"max_speed", 190, "km/h", "Car maximum speed capability (Monaco limited)"},
+		{"aero_damage_percentage", 0.03, "percentage", "Current aerodynamic damage level"},
+		{"tire_advantage_per_lap", 1.2, "seconds", "Lap time advantage of fresh tires (higher in Monaco)"},
 	}
 }
 
-// generateCompetitorData creates competitor data for overtaking analysis
+// generateCompetitorData creates Monaco-realistic competitor data
 func generateCompetitorData() []Competitor {
 	var competitors []Competitor
 	tireCompounds := []string{"Soft", "Medium", "Hard"}
@@ -321,25 +372,36 @@ func generateCompetitorData() []Competitor {
 
 		if position < ourPosition {
 			// Cars ahead of us
-			distanceToOurCar = positionDiff * uniformRandom(80, 150) // 80-150m per position ahead
+			distanceToOurCar = positionDiff * uniformRandom(120, 200) // Larger gaps in Monaco
 		} else {
 			// Cars behind us
-			distanceToOurCar = positionDiff * uniformRandom(100, 200) // 100-200m per position behind
+			distanceToOurCar = positionDiff * uniformRandom(150, 250) // Even larger gaps behind
 		}
 
 		// Add some variation for cars in close proximity (within 2 positions)
 		if positionDiff <= 2 {
-			distanceToOurCar = uniformRandom(20, 80) // Close racing
+			distanceToOurCar = uniformRandom(40, 100) // Still relatively close racing
+		}
+
+		// Monaco-realistic top speeds (much lower than high-speed circuits)
+		var monacoTopSpeed float64
+		// Top speeds vary by car performance and setup
+		if position <= 5 { // Top teams
+			monacoTopSpeed = uniformRandom(175, 190)
+		} else if position <= 10 { // Midfield
+			monacoTopSpeed = uniformRandom(165, 180)
+		} else { // Back markers
+			monacoTopSpeed = uniformRandom(155, 170)
 		}
 
 		competitor := Competitor{
 			CarNumber:        i,
 			Position:         position,
-			GapToLeader:      math.Round((float64(i)*1.2+uniformRandom(-0.5, 0.5))*100) / 100,
-			LastLapTime:      math.Round((78.5+uniformRandom(-1.5, 3.0))*1000) / 1000,
+			GapToLeader:      math.Round((float64(position-1)*1.8+uniformRandom(-0.8, 1.2))*100) / 100,
+			LastLapTime:      math.Round((78.5+uniformRandom(-2.0, 4.5))*1000) / 1000, // More variation in Monaco
 			TireCompound:     tireCompounds[rng.Intn(len(tireCompounds))],
-			PitStops:         rng.Intn(2), // 0 or 1
-			EstimatedSpeed:   math.Round((220+uniformRandom(-20, 30))*10) / 10,
+			PitStops:         rng.Intn(2),                        // 0 or 1
+			EstimatedSpeed:   math.Round(monacoTopSpeed*10) / 10, // Now Monaco-realistic!
 			FuelLoadEstimate: math.Round((uniformRandom(95, 110))*10) / 10,
 			TireAge:          rng.Intn(21) + 5, // 5-25 laps
 			DistanceToOurCar: math.Round(distanceToOurCar*10) / 10,
@@ -477,7 +539,7 @@ func writeCompetitorCSV(competitors []Competitor, filename string) error {
 }
 
 func main() {
-	fmt.Println("Generating Monaco GP telemetry data...")
+	fmt.Println("Generating Monaco-realistic GP telemetry data...")
 	start := time.Now()
 
 	// Generate all data
@@ -486,28 +548,33 @@ func main() {
 	competitorData := generateCompetitorData()
 
 	// Write CSV files
-	if err := writeTelemetryCSV(telemetryData, "telemetry_data.csv"); err != nil {
+	if err := writeTelemetryCSV(telemetryData, "./data/telemetry_data.csv"); err != nil {
 		fmt.Printf("Error writing telemetry data: %v\n", err)
 		return
 	}
 
-	if err := writeRaceParametersCSV(raceParams, "race_parameters.csv"); err != nil {
+	if err := writeRaceParametersCSV(raceParams, "./data/race_parameters.csv"); err != nil {
 		fmt.Printf("Error writing race parameters: %v\n", err)
 		return
 	}
 
-	if err := writeCompetitorCSV(competitorData, "competitor_data.csv"); err != nil {
+	if err := writeCompetitorCSV(competitorData, "./data/competitor_data.csv"); err != nil {
 		fmt.Printf("Error writing competitor data: %v\n", err)
 		return
 	}
 
 	duration := time.Since(start)
 
-	fmt.Printf("Generated files:\n")
+	fmt.Printf("Generated Monaco-realistic files:\n")
 	fmt.Printf("- telemetry_data.csv: %d samples\n", len(telemetryData.Time))
 	fmt.Printf("- race_parameters.csv: %d parameters\n", len(raceParams))
 	fmt.Printf("- competitor_data.csv: %d competitors\n", len(competitorData))
-	fmt.Printf("\nData represents 10 laps of Monaco GP telemetry at 10Hz sampling rate\n")
-	fmt.Printf("Total telemetry samples: %d\n", len(telemetryData.Time))
-	fmt.Printf("Generation completed in %v\n", duration)
+	fmt.Printf("\nKey Monaco improvements:\n")
+	fmt.Printf("- Realistic speed ranges: 45-190 km/h (was 45-320 km/h)\n")
+	fmt.Printf("- Monaco-specific corner profiles and braking zones\n")
+	fmt.Printf("- Competitor top speeds: 155-190 km/h (was 200-250 km/h)\n")
+	fmt.Printf("- Higher tire degradation and track difficulty\n")
+	fmt.Printf("- Reduced slipstream effectiveness\n")
+	fmt.Printf("- Monaco-appropriate race parameters\n")
+	fmt.Printf("\nGeneration completed in %v\n", duration)
 }
